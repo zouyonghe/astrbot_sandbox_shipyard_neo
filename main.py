@@ -3,7 +3,6 @@ from astrbot.core.computer.computer_client import (
     register_sandbox_provider,
     unregister_sandbox_provider,
 )
-from astrbot.core.provider.register import llm_tools
 
 from .provider import ShipyardNeoSandboxProvider
 from .tools.shipyard_neo import (
@@ -33,28 +32,27 @@ from .tools.shipyard_neo import (
 class ShipyardNeoSandboxRuntimePlugin(Star):
     def __init__(self, context: Context, config=None) -> None:
         super().__init__(context)
-        self.provider = ShipyardNeoSandboxProvider()
-        self.provider.plugin_config = config or {}
-        register_sandbox_provider(self.provider, replace=True)
-        for tool in (
-            BrowserExecTool(),
-            BrowserBatchExecTool(),
-            RunBrowserSkillTool(),
-            GetExecutionHistoryTool(),
-            AnnotateExecutionTool(),
-            CreateSkillPayloadTool(),
-            GetSkillPayloadTool(),
-            CreateSkillCandidateTool(),
-            ListSkillCandidatesTool(),
-            EvaluateSkillCandidateTool(),
-            PromoteSkillCandidateTool(),
-            ListSkillReleasesTool(),
-            RollbackSkillReleaseTool(),
-            SyncSkillReleaseTool(),
-        ):
-            llm_tools.func_list.append(tool)
+        self.provider = ShipyardNeoSandboxProvider(plugin_config=config)
+        register_sandbox_provider(
+            self.provider,
+            replace=True,
+            tools=[
+                BrowserExecTool(),
+                BrowserBatchExecTool(),
+                RunBrowserSkillTool(),
+                GetExecutionHistoryTool(),
+                AnnotateExecutionTool(),
+                CreateSkillPayloadTool(),
+                GetSkillPayloadTool(),
+                CreateSkillCandidateTool(),
+                ListSkillCandidatesTool(),
+                EvaluateSkillCandidateTool(),
+                PromoteSkillCandidateTool(),
+                ListSkillReleasesTool(),
+                RollbackSkillReleaseTool(),
+                SyncSkillReleaseTool(),
+            ],
+        )
 
     async def terminate(self) -> None:
-        for tool_name in self.provider.tool_names:
-            llm_tools.remove_func(tool_name)
         unregister_sandbox_provider(self.provider.provider_id, force=True)
