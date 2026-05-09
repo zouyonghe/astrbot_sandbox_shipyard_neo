@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from pathlib import Path
+from typing import Any
 
 from astrbot.api import logger
 from astrbot.core.computer.booters.base import ComputerBooter
@@ -54,31 +55,42 @@ class ShipyardNeoSandboxProvider:
         "astrbot_sync_skill_release",
     }
 
-    def __init__(self, boot_hook: BootHook | None = None) -> None:
+    def __init__(
+        self,
+        boot_hook: BootHook | None = None,
+        *,
+        plugin_config: Mapping[str, Any] | None = None,
+    ) -> None:
+        self.plugin_config: dict[str, Any] = (
+            dict(plugin_config) if plugin_config is not None else {}
+        )
         self._boot_hook = boot_hook
 
-    def build_create_config(self, context: Context, session_id: str) -> dict:
+    def _merged_sandbox_config(self, context: Context, session_id: str) -> dict:
+        """Return sandbox config with plugin_config as base and user settings overriding."""
         config = context.get_config(umo=session_id)
+        merged = dict(self.plugin_config)
         sandbox_cfg = config.get("provider_settings", {}).get("sandbox", {})
-        plugin_cfg = getattr(self, "plugin_config", None) or {}
-        endpoint = sandbox_cfg.get(
-            "shipyard_neo_endpoint", plugin_cfg.get("shipyard_neo_endpoint", "")
-        )
-        token = sandbox_cfg.get(
-            "shipyard_neo_access_token", plugin_cfg.get("shipyard_neo_access_token", "")
-        )
+        if isinstance(sandbox_cfg, dict):
+            merged.update(sandbox_cfg)
+        else:
+            logger.warning(
+                "[Computer] Expected dict for provider_settings.sandbox, got %s. Ignoring.",
+                type(sandbox_cfg).__name__,
+            )
+        return merged
+
+    def build_create_config(self, context: Context, session_id: str) -> dict:
+        merged = self._merged_sandbox_config(context, session_id)
+        endpoint = merged.get("shipyard_neo_endpoint", "")
+        token = merged.get("shipyard_neo_access_token", "")
         if not token:
             token = _discover_bay_credentials(endpoint)
         return {
             "endpoint_url": endpoint,
             "access_token": token,
-            "profile": sandbox_cfg.get(
-                "shipyard_neo_profile",
-                plugin_cfg.get("shipyard_neo_profile", "python-default"),
-            ),
-            "ttl": sandbox_cfg.get(
-                "shipyard_neo_ttl", plugin_cfg.get("shipyard_neo_ttl", 3600)
-            ),
+            "profile": merged.get("shipyard_neo_profile", "python-default"),
+            "ttl": merged.get("shipyard_neo_ttl", 3600),
         }
 
     def build_connect_info(self, sandbox_name: str, config: dict) -> dict:
@@ -103,7 +115,6 @@ class ShipyardNeoSandboxProvider:
             return await self._boot_hook(context, session_id, sandbox_id, config)
         client = ShipyardNeoBooter(**config)
         await client.boot(uuid.uuid5(uuid.NAMESPACE_DNS, session_id).hex)
-        await client.sync_skills_to_sandbox()
         return client
 
     async def destroy_booter(self, booter: ComputerBooter, record: dict) -> None:
