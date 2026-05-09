@@ -25,7 +25,7 @@ from .tools.shipyard_neo import (
 
 
 @register(
-    "astrbot-sandbox-shipyard-neo",
+    "astrbot_sandbox_shipyard_neo",
     "AstrBot Team",
     "Shipyard Neo sandbox runtime provider for AstrBot",
     "0.1.0",

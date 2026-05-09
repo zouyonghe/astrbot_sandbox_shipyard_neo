@@ -1,4 +1,4 @@
-name: astrbot-sandbox-shipyard-neo
+name: astrbot_sandbox_shipyard_neo
 author: AstrBot Team
 desc: Shipyard Neo sandbox runtime provider for AstrBot.
 version: 0.1.0
