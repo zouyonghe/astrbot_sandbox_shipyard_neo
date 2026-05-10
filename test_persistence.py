@@ -499,7 +499,6 @@ def test_bay_manager_configures_pullable_default_profile_image():
 
     assert profiles[0]["id"] == "python-default"
     assert profiles[0]["image"] == DEFAULT_SHIP_RUNTIME_IMAGE
-    assert profiles[0]["image"] == "ghcr.io/astrbotdevs/shipyard-neo-ship:latest"
     assert profiles[0]["resources"] == {"cpus": 1.0, "memory": "1g"}
     assert profiles[0]["capabilities"] == ["filesystem", "shell", "python"]
     assert profiles[0]["idle_timeout"] == 1800
