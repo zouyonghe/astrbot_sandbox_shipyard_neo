@@ -79,6 +79,32 @@ async def test_shipyard_neo_terminate_detaches_even_if_cleanup_fails(monkeypatch
     assert calls == [("cleanup", "shipyard_neo"), ("detach", "shipyard_neo")]
 
 
+@pytest.mark.asyncio
+async def test_shipyard_neo_terminate_detaches_on_successful_cleanup(monkeypatch):
+    calls = []
+
+    class FakeProvider:
+        provider_id = "shipyard_neo"
+
+    async def fake_cleanup(provider_id):
+        calls.append(("cleanup", provider_id))
+
+    def fake_detach(provider_id):
+        calls.append(("detach", provider_id))
+
+    monkeypatch.setattr(plugin_main, "cleanup_sandbox_provider", fake_cleanup)
+    monkeypatch.setattr(plugin_main, "detach_sandbox_provider", fake_detach)
+
+    plugin = plugin_main.ShipyardNeoSandboxRuntimePlugin.__new__(
+        plugin_main.ShipyardNeoSandboxRuntimePlugin
+    )
+    plugin.provider = FakeProvider()
+
+    await plugin.terminate()
+
+    assert calls == [("cleanup", "shipyard_neo"), ("detach", "shipyard_neo")]
+
+
 def test_shipyard_neo_provider_update_connect_info_populates_legacy_persistent_name():
     provider = provider_module.ShipyardNeoSandboxProvider()
 
