@@ -187,6 +187,71 @@ async def test_shipyard_neo_booter_resume_falls_back_when_sandbox_missing(monkey
 
 
 @pytest.mark.asyncio
+async def test_shipyard_neo_auto_mode_generates_token_for_bay_and_client(monkeypatch):
+    from data.plugins.astrbot_sandbox_shipyard_neo.booters.shipyard_neo import (
+        ShipyardNeoBooter,
+    )
+
+    recorded = {}
+
+    class FakeBayManager:
+        def __init__(self, *, access_token: str):
+            recorded["manager_token"] = access_token
+
+        async def ensure_running(self):
+            return "http://127.0.0.1:8114"
+
+        async def wait_healthy(self):
+            return None
+
+        async def read_credentials(self):
+            raise AssertionError("random token should avoid reading credentials")
+
+    class FakeSandbox:
+        id = "sbx_generated"
+        profile = "python-default"
+        capabilities = []
+        status = SimpleNamespace(value="ready")
+        shell = SimpleNamespace()
+        filesystem = SimpleNamespace()
+        python = SimpleNamespace()
+
+        async def refresh(self):
+            return None
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            recorded["client_kwargs"] = kwargs
+
+        async def __aenter__(self):
+            return self
+
+        async def list_profiles(self):
+            return SimpleNamespace(items=[])
+
+        async def create_sandbox(self, *, profile: str, ttl: int):
+            return FakeSandbox()
+
+    monkeypatch.setattr(
+        "data.plugins.astrbot_sandbox_shipyard_neo.booters.bay_manager.BayContainerManager",
+        FakeBayManager,
+    )
+    monkeypatch.setattr(
+        "data.plugins.astrbot_sandbox_shipyard_neo.booters.shipyard_neo.BayClient",
+        FakeClient,
+    )
+    booter = ShipyardNeoBooter(endpoint_url="__auto__", access_token="")
+
+    await booter.boot("ignored")
+
+    assert recorded["manager_token"]
+    assert recorded["client_kwargs"] == {
+        "endpoint_url": "http://127.0.0.1:8114",
+        "access_token": recorded["manager_token"],
+    }
+
+
+@pytest.mark.asyncio
 async def test_shipyard_neo_provider_reports_persistent_sandbox_exists(monkeypatch):
     calls = []
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import secrets
 import shlex
 from typing import Any, cast
 
@@ -416,12 +417,11 @@ class ShipyardNeoBooter(ComputerBooter):
                 await self._bay_manager.close_client()
 
             logger.info("[Computer] Neo auto-start mode: launching Bay container")
-            self._bay_manager = BayContainerManager()
+            if not self._access_token:
+                self._access_token = secrets.token_urlsafe(32)
+            self._bay_manager = BayContainerManager(access_token=self._access_token)
             self._endpoint_url = await self._bay_manager.ensure_running()
             await self._bay_manager.wait_healthy()
-            # Read auto-provisioned credentials
-            if not self._access_token:
-                self._access_token = await self._bay_manager.read_credentials()
             logger.info("[Computer] Bay auto-started at %s", self._endpoint_url)
 
         if not self._endpoint_url or not self._access_token:
@@ -446,7 +446,9 @@ class ShipyardNeoBooter(ComputerBooter):
             from shipyard_neo.errors import NotFoundError, SandboxExpiredError
 
             try:
-                self._sandbox = await self._client.get_sandbox(self._existing_sandbox_id)
+                self._sandbox = await self._client.get_sandbox(
+                    self._existing_sandbox_id
+                )
                 resolved_profile = self._sandbox.profile
             except (NotFoundError, SandboxExpiredError) as exc:
                 logger.info(

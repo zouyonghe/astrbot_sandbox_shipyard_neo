@@ -37,9 +37,11 @@ class BayContainerManager:
         self,
         image: str = BAY_IMAGE,
         host_port: int = BAY_PORT,
+        access_token: str = "",
     ) -> None:
         self._image = image
         self._host_port = host_port
+        self._access_token = access_token
         self._docker: aiodocker.Docker | None = None
         self._container: Any = None
 
@@ -98,6 +100,7 @@ class BayContainerManager:
                 "BAY_DATA_DIR=/app/data",
                 # allow_anonymous=false → auto-provisions API key
                 "BAY_SECURITY__ALLOW_ANONYMOUS=false",
+                f"BAY_SECURITY__API_KEY={self._access_token}",
             ],
             "HostConfig": {
                 "PortBindings": {
