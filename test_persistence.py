@@ -500,6 +500,9 @@ def test_bay_manager_configures_pullable_default_profile_image():
     assert profiles[0]["id"] == "python-default"
     assert profiles[0]["image"] == DEFAULT_SHIP_RUNTIME_IMAGE
     assert profiles[0]["image"] == "ghcr.io/astrbotdevs/shipyard-neo-ship:latest"
+    assert profiles[0]["resources"] == {"cpus": 1.0, "memory": "1g"}
+    assert profiles[0]["capabilities"] == ["filesystem", "shell", "python"]
+    assert profiles[0]["idle_timeout"] == 1800
 
 
 def test_bay_manager_detects_mismatched_existing_container_env():
@@ -527,6 +530,35 @@ def test_bay_manager_accepts_matching_existing_container_env():
     )
 
 
+def test_bay_manager_matches_without_access_token():
+    from data.plugins.astrbot_sandbox_shipyard_neo.booters.bay_manager import (
+        BayContainerManager,
+    )
+
+    manager = BayContainerManager(access_token="")
+    env = manager.build_container_env()
+
+    assert "BAY_SECURITY__API_KEY=" not in env
+    assert manager.container_env_matches({"Config": {"Env": env}}) is True
+
+
+def test_bay_manager_rejects_different_api_key():
+    from data.plugins.astrbot_sandbox_shipyard_neo.booters.bay_manager import (
+        BayContainerManager,
+    )
+
+    manager = BayContainerManager(access_token="new-token")
+    desired_env = manager.build_container_env()
+
+    # Simulate an existing container with an old API key
+    stale_env = [
+        item for item in desired_env if not item.startswith("BAY_SECURITY__API_KEY=")
+    ]
+    stale_env.append("BAY_SECURITY__API_KEY=old-token")
+
+    assert manager.container_env_matches({"Config": {"Env": stale_env}}) is False
+
+
 @pytest.mark.asyncio
 async def test_shipyard_neo_boot_closes_client_when_readiness_fails(monkeypatch):
     from data.plugins.astrbot_sandbox_shipyard_neo.booters.shipyard_neo import (
@@ -541,7 +573,7 @@ async def test_shipyard_neo_boot_closes_client_when_readiness_fails(monkeypatch)
             return self
 
         async def __aexit__(self, exc_type, exc, tb):
-            calls.append("exit")
+            calls.append(("exit", exc_type, exc))
 
         async def list_profiles(self):
             return SimpleNamespace(items=[])
@@ -567,7 +599,12 @@ async def test_shipyard_neo_boot_closes_client_when_readiness_fails(monkeypatch)
     with pytest.raises(RuntimeError, match="sandbox failed"):
         await booter.boot("ignored")
 
-    assert calls == ["enter", "exit"]
+    assert calls[0] == "enter"
+    exit_call = calls[1]
+    assert exit_call[0] == "exit"
+    assert exit_call[1] is RuntimeError
+    assert isinstance(exit_call[2], RuntimeError)
+    assert str(exit_call[2]) == "sandbox failed"
     assert booter.bay_client is None
 
 

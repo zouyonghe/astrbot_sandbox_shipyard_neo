@@ -4,6 +4,7 @@ import asyncio
 import os
 import secrets
 import shlex
+import sys
 from typing import Any, cast
 
 from astrbot.api import logger
@@ -498,7 +499,16 @@ class ShipyardNeoBooter(ComputerBooter):
                 self._resume,
             )
         except Exception:
-            await self._client.__aexit__(None, None, None)
+            exc_type, exc, tb = sys.exc_info()
+            client = self._client
+            if client is not None:
+                try:
+                    await client.__aexit__(exc_type, exc, tb)
+                except Exception as cleanup_err:
+                    logger.warning(
+                        "[Computer] Error cleaning up Shipyard Neo client during boot failure: %s",
+                        cleanup_err,
+                    )
             self._client = None
             self._sandbox = None
             raise

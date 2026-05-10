@@ -74,8 +74,14 @@ class BayContainerManager:
                     "[BayManager] Recreating Bay container because configuration changed"
                 )
                 container = await self._docker.containers.get(existing["Id"])
-                await container.stop()
-                await container.delete(force=True)
+                try:
+                    await container.stop()
+                    await container.delete(force=True)
+                except Exception as teardown_err:
+                    logger.warning(
+                        "[BayManager] Failed to tear down stale Bay container: %s",
+                        teardown_err,
+                    )
                 existing = None
 
         if existing is not None:
