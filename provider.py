@@ -15,7 +15,6 @@ from .booters import shipyard_neo as shipyard_neo_booter
 from .booters.shipyard_neo import SHIPYARD_NEO_AUTO_ENDPOINT, ShipyardNeoBooter
 
 BootHook = Callable[[Context, str, str, dict], Awaitable[ComputerBooter]]
-DEFAULT_SHIPYARD_NEO_ENDPOINT = SHIPYARD_NEO_AUTO_ENDPOINT
 
 
 def _discover_bay_credentials(endpoint: str) -> str:
@@ -90,9 +89,12 @@ class ShipyardNeoSandboxProvider:
             raise TypeError("shipyard_neo_endpoint must be a string")
         endpoint = raw_endpoint.strip() if isinstance(raw_endpoint, str) else ""
         if not endpoint:
-            endpoint = DEFAULT_SHIPYARD_NEO_ENDPOINT
-        token = merged.get("shipyard_neo_access_token", "")
-        if not token and endpoint != DEFAULT_SHIPYARD_NEO_ENDPOINT:
+            endpoint = SHIPYARD_NEO_AUTO_ENDPOINT
+        raw_token = merged.get("shipyard_neo_access_token")
+        if raw_token is not None and not isinstance(raw_token, str):
+            raise TypeError("shipyard_neo_access_token must be a string")
+        token = raw_token.strip() if isinstance(raw_token, str) else ""
+        if not token and endpoint != SHIPYARD_NEO_AUTO_ENDPOINT:
             token = _discover_bay_credentials(endpoint)
         return {
             "endpoint_url": endpoint,

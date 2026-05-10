@@ -4,6 +4,29 @@ import pytest
 
 from data.plugins.astrbot_sandbox_shipyard_neo import provider as provider_module
 from data.plugins.astrbot_sandbox_shipyard_neo.booters import shipyard_neo
+from data.plugins.astrbot_sandbox_shipyard_neo.booters.shipyard_neo import (
+    SHIPYARD_NEO_AUTO_ENDPOINT,
+)
+
+
+class FakeReadySandbox:
+    def __init__(
+        self,
+        sandbox_id: str = "sbx_fake",
+        profile: str = "python-default",
+        capabilities: list[str] | None = None,
+    ):
+        self.id = sandbox_id
+        self.profile = profile
+        self.capabilities = [] if capabilities is None else capabilities
+        self.status = SimpleNamespace(value="ready")
+        self.shell = SimpleNamespace()
+        self.filesystem = SimpleNamespace()
+        self.python = SimpleNamespace()
+        self.browser = SimpleNamespace()
+
+    async def refresh(self):
+        return None
 
 
 def test_shipyard_neo_provider_connect_info_tracks_sandbox_id():
@@ -138,20 +161,6 @@ async def test_shipyard_neo_booter_resume_falls_back_when_sandbox_missing(monkey
 
     recorded = []
 
-    class FakeSandbox:
-        def __init__(self, sandbox_id: str, profile: str = "python-default"):
-            self.id = sandbox_id
-            self.profile = profile
-            self.capabilities = ["browser"]
-            self.status = SimpleNamespace(value="ready")
-            self.shell = SimpleNamespace()
-            self.filesystem = SimpleNamespace()
-            self.python = SimpleNamespace()
-            self.browser = SimpleNamespace()
-
-        async def refresh(self):
-            return None
-
     class FakeClient:
         async def __aenter__(self):
             return self
@@ -161,7 +170,7 @@ async def test_shipyard_neo_booter_resume_falls_back_when_sandbox_missing(monkey
 
         async def create_sandbox(self, *, profile: str, ttl: int):
             recorded.append(("create", profile, ttl))
-            return FakeSandbox("new_sbx", profile)
+            return FakeReadySandbox("new_sbx", profile, capabilities=["browser"])
 
     monkeypatch.setattr(
         "data.plugins.astrbot_sandbox_shipyard_neo.booters.shipyard_neo.BayClient",
@@ -208,18 +217,6 @@ async def test_shipyard_neo_auto_mode_generates_token_for_bay_and_client(monkeyp
         async def read_credentials(self):
             raise AssertionError("random token should avoid reading credentials")
 
-    class FakeSandbox:
-        id = "sbx_generated"
-        profile = "python-default"
-        capabilities = []
-        status = SimpleNamespace(value="ready")
-        shell = SimpleNamespace()
-        filesystem = SimpleNamespace()
-        python = SimpleNamespace()
-
-        async def refresh(self):
-            return None
-
     class FakeClient:
         def __init__(self, **kwargs):
             recorded["client_kwargs"] = kwargs
@@ -231,7 +228,7 @@ async def test_shipyard_neo_auto_mode_generates_token_for_bay_and_client(monkeyp
             return SimpleNamespace(items=[])
 
         async def create_sandbox(self, *, profile: str, ttl: int):
-            return FakeSandbox()
+            return FakeReadySandbox("sbx_generated")
 
     monkeypatch.setattr(
         "data.plugins.astrbot_sandbox_shipyard_neo.booters.bay_manager.BayContainerManager",
@@ -277,18 +274,6 @@ async def test_shipyard_neo_auto_mode_reuses_configured_token(monkeypatch):
         async def read_credentials(self):
             raise AssertionError("configured token should avoid reading credentials")
 
-    class FakeSandbox:
-        id = "sbx_configured"
-        profile = "python-default"
-        capabilities = []
-        status = SimpleNamespace(value="ready")
-        shell = SimpleNamespace()
-        filesystem = SimpleNamespace()
-        python = SimpleNamespace()
-
-        async def refresh(self):
-            return None
-
     class FakeClient:
         def __init__(self, **kwargs):
             recorded["client_kwargs"] = kwargs
@@ -300,7 +285,7 @@ async def test_shipyard_neo_auto_mode_reuses_configured_token(monkeypatch):
             return SimpleNamespace(items=[])
 
         async def create_sandbox(self, *, profile: str, ttl: int):
-            return FakeSandbox()
+            return FakeReadySandbox("sbx_configured")
 
     monkeypatch.setattr(
         "data.plugins.astrbot_sandbox_shipyard_neo.booters.bay_manager.BayContainerManager",
@@ -332,18 +317,18 @@ async def test_shipyard_neo_auto_mode_reuses_configured_token(monkeypatch):
 @pytest.mark.parametrize(
     "endpoint_value, access_token, expected_endpoint, expected_token",
     [
-        (None, "", provider_module.DEFAULT_SHIPYARD_NEO_ENDPOINT, ""),
+        (None, "", SHIPYARD_NEO_AUTO_ENDPOINT, ""),
         (
-            provider_module.DEFAULT_SHIPYARD_NEO_ENDPOINT,
+            SHIPYARD_NEO_AUTO_ENDPOINT,
             "",
-            provider_module.DEFAULT_SHIPYARD_NEO_ENDPOINT,
+            SHIPYARD_NEO_AUTO_ENDPOINT,
             "",
         ),
-        ("   ", "", provider_module.DEFAULT_SHIPYARD_NEO_ENDPOINT, ""),
+        ("   ", "", SHIPYARD_NEO_AUTO_ENDPOINT, ""),
         (
-            provider_module.DEFAULT_SHIPYARD_NEO_ENDPOINT,
+            SHIPYARD_NEO_AUTO_ENDPOINT,
             "pre-configured-token",
-            provider_module.DEFAULT_SHIPYARD_NEO_ENDPOINT,
+            SHIPYARD_NEO_AUTO_ENDPOINT,
             "pre-configured-token",
         ),
     ],
@@ -426,6 +411,46 @@ def test_shipyard_neo_provider_discovers_credentials_for_non_auto_endpoint(
     assert recorded["endpoint"] == "https://bay.example.com"
     assert config["endpoint_url"] == "https://bay.example.com"
     assert config["access_token"] == "discovered-token"
+
+
+def test_shipyard_neo_provider_rejects_non_string_access_token():
+    provider = provider_module.ShipyardNeoSandboxProvider()
+    context = SimpleNamespace(
+        get_config=lambda umo: {
+            "provider_settings": {
+                "sandbox": {
+                    "shipyard_neo_access_token": {"token": "secret"},
+                }
+            }
+        }
+    )
+
+    with pytest.raises(TypeError, match="shipyard_neo_access_token must be a string"):
+        provider.build_create_config(context, "dashboard")
+
+
+def test_shipyard_neo_provider_strips_access_token_without_discovery(monkeypatch):
+    def fail_discovery(endpoint: str):
+        raise AssertionError(f"should not discover credentials for {endpoint}")
+
+    monkeypatch.setattr(provider_module, "_discover_bay_credentials", fail_discovery)
+
+    provider = provider_module.ShipyardNeoSandboxProvider()
+    context = SimpleNamespace(
+        get_config=lambda umo: {
+            "provider_settings": {
+                "sandbox": {
+                    "shipyard_neo_endpoint": " https://bay.example.com ",
+                    "shipyard_neo_access_token": " configured-token ",
+                }
+            }
+        }
+    )
+
+    config = provider.build_create_config(context, "dashboard")
+
+    assert config["endpoint_url"] == "https://bay.example.com"
+    assert config["access_token"] == "configured-token"
 
 
 def _assert_core_bay_env(env: list[str]) -> None:
