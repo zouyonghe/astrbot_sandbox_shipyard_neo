@@ -455,6 +455,7 @@ def test_shipyard_neo_provider_strips_access_token_without_discovery(monkeypatch
 
 def _assert_core_bay_env(env: list[str]) -> None:
     assert "BAY_SECURITY__ALLOW_ANONYMOUS=false" in env
+    assert "BAY_DATA_DIR=/app/data" in env
     assert any(entry.startswith("BAY_SERVER__HOST=") for entry in env)
     assert any(entry.startswith("BAY_SERVER__PORT=") for entry in env)
 
