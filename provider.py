@@ -12,10 +12,10 @@ from astrbot.core.computer.booters.base import ComputerBooter
 from astrbot.core.star.context import Context
 
 from .booters import shipyard_neo as shipyard_neo_booter
-from .booters.shipyard_neo import ShipyardNeoBooter
+from .booters.shipyard_neo import SHIPYARD_NEO_AUTO_ENDPOINT, ShipyardNeoBooter
 
 BootHook = Callable[[Context, str, str, dict], Awaitable[ComputerBooter]]
-DEFAULT_SHIPYARD_NEO_ENDPOINT = "__auto__"
+DEFAULT_SHIPYARD_NEO_ENDPOINT = SHIPYARD_NEO_AUTO_ENDPOINT
 
 
 def _discover_bay_credentials(endpoint: str) -> str:
@@ -85,7 +85,8 @@ class ShipyardNeoSandboxProvider:
 
     def build_create_config(self, context: Context, session_id: str) -> dict:
         merged = self._merged_sandbox_config(context, session_id)
-        endpoint = str(merged.get("shipyard_neo_endpoint") or "").strip()
+        raw_endpoint = merged.get("shipyard_neo_endpoint")
+        endpoint = raw_endpoint.strip() if isinstance(raw_endpoint, str) else ""
         if not endpoint:
             endpoint = DEFAULT_SHIPYARD_NEO_ENDPOINT
         token = merged.get("shipyard_neo_access_token", "")

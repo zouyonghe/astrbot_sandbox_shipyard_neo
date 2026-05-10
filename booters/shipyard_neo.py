@@ -18,6 +18,8 @@ from astrbot.core.computer.olayer import (
 from .shell_background import build_detached_shell_command
 from .shipyard_search_file_util import search_files_via_shell
 
+SHIPYARD_NEO_AUTO_ENDPOINT = "__auto__"
+
 try:
     from shipyard_neo import BayClient
     from shipyard_neo.sandbox import Sandbox
@@ -342,12 +344,12 @@ class NeoBrowserComponent(BrowserComponent):
 class ShipyardNeoBooter(ComputerBooter):
     """Booter backed by Shipyard Neo (Bay).
 
-    If *endpoint_url* is empty or set to ``"__auto__"``, Bay will be
+    If *endpoint_url* is empty or set to :data:`SHIPYARD_NEO_AUTO_ENDPOINT`, Bay will be
     started automatically as a Docker container (like Boxlite does for
     Ship containers).
     """
 
-    AUTO_SENTINEL = "__auto__"
+    AUTO_SENTINEL = SHIPYARD_NEO_AUTO_ENDPOINT
     DEFAULT_PROFILE = "python-default"
 
     def __init__(
