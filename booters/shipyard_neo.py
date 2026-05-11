@@ -6,7 +6,6 @@ import secrets
 import shlex
 import sys
 from typing import Any, cast
-from urllib.parse import urlparse
 
 from astrbot.api import logger
 from astrbot.core.computer.booters.base import ComputerBooter
@@ -18,10 +17,11 @@ from astrbot.core.computer.olayer import (
 )
 
 from .shell_background import build_detached_shell_command
+from .shipyard_neo_endpoint import (
+    SHIPYARD_NEO_AUTO_ENDPOINT,
+    is_shipyard_neo_auto_endpoint,
+)
 from .shipyard_search_file_util import search_files_via_shell
-
-SHIPYARD_NEO_AUTO_ENDPOINT = "__auto__"
-DEFAULT_SHIPYARD_NEO_ENDPOINT = "http://127.0.0.1:8114"
 
 try:
     from shipyard_neo import BayClient
@@ -407,23 +407,7 @@ class ShipyardNeoBooter(ComputerBooter):
     @property
     def is_auto_mode(self) -> bool:
         """True when Bay should be auto-started."""
-        ep = (self._endpoint_url or "").strip()
-        if not ep or ep == self.AUTO_SENTINEL:
-            return True
-        parsed = urlparse(ep)
-        try:
-            port = parsed.port
-        except ValueError:
-            return False
-        return (
-            parsed.scheme.lower() == "http"
-            and (parsed.hostname or "").lower() in {"127.0.0.1", "localhost"}
-            and port == 8114
-            and parsed.path in {"", "/"}
-            and not parsed.params
-            and not parsed.query
-            and not parsed.fragment
-        )
+        return is_shipyard_neo_auto_endpoint(self._endpoint_url)
 
     async def boot(self, session_id: str) -> None:
         _ = session_id

@@ -6,9 +6,11 @@ import pytest
 from data.plugins.astrbot_sandbox_shipyard_neo import main as plugin_main
 from data.plugins.astrbot_sandbox_shipyard_neo import provider as provider_module
 from data.plugins.astrbot_sandbox_shipyard_neo.booters import shipyard_neo
-from data.plugins.astrbot_sandbox_shipyard_neo.booters.shipyard_neo import (
+from data.plugins.astrbot_sandbox_shipyard_neo.booters.shipyard_neo_endpoint import (
     DEFAULT_SHIPYARD_NEO_ENDPOINT,
     SHIPYARD_NEO_AUTO_ENDPOINT,
+    is_shipyard_neo_auto_endpoint,
+    normalize_shipyard_neo_endpoint,
 )
 
 
@@ -62,6 +64,65 @@ def test_shipyard_neo_provider_defaults_to_local_endpoint_when_unconfigured():
 
     assert config["endpoint_url"] == DEFAULT_SHIPYARD_NEO_ENDPOINT
     assert config["access_token"] == ""
+
+
+@pytest.mark.parametrize(
+    "endpoint_value, expected_endpoint, expected_auto",
+    [
+        ("http://localhost:8114", DEFAULT_SHIPYARD_NEO_ENDPOINT, True),
+        ("http://127.0.0.1:8114/", DEFAULT_SHIPYARD_NEO_ENDPOINT, True),
+        ("https://127.0.0.1:8114", "https://127.0.0.1:8114", False),
+        ("http://127.0.0.1:9000", "http://127.0.0.1:9000", False),
+    ],
+)
+def test_shipyard_neo_provider_normalizes_localhost_and_rejects_non_auto_endpoints(
+    endpoint_value,
+    expected_endpoint,
+    expected_auto,
+    monkeypatch,
+):
+    discovered: list[str] = []
+
+    def fake_discover(endpoint: str) -> str:
+        discovered.append(endpoint)
+        return "discovered-token"
+
+    monkeypatch.setattr(provider_module, "_discover_bay_credentials", fake_discover)
+    provider = provider_module.ShipyardNeoSandboxProvider()
+    context = SimpleNamespace(
+        get_config=lambda umo: {
+            "provider_settings": {
+                "sandbox": {
+                    "shipyard_neo_endpoint": endpoint_value,
+                }
+            }
+        }
+    )
+
+    config = provider.build_create_config(context, "dashboard")
+
+    assert config["endpoint_url"] == expected_endpoint
+    assert config["access_token"] == ("" if expected_auto else "discovered-token")
+    assert discovered == ([] if expected_auto else [expected_endpoint])
+    assert is_shipyard_neo_auto_endpoint(config["endpoint_url"]) is expected_auto
+
+
+@pytest.mark.parametrize(
+    "endpoint_value, expected_endpoint, expected_auto",
+    [
+        (None, DEFAULT_SHIPYARD_NEO_ENDPOINT, True),
+        (SHIPYARD_NEO_AUTO_ENDPOINT, DEFAULT_SHIPYARD_NEO_ENDPOINT, True),
+        (" http://localhost:8114/ ", DEFAULT_SHIPYARD_NEO_ENDPOINT, True),
+        ("http://127.0.0.1:9000", "http://127.0.0.1:9000", False),
+    ],
+)
+def test_shipyard_neo_endpoint_helper_centralizes_normalization(
+    endpoint_value, expected_endpoint, expected_auto
+):
+    normalized = normalize_shipyard_neo_endpoint(endpoint_value)
+
+    assert normalized == expected_endpoint
+    assert is_shipyard_neo_auto_endpoint(normalized) is expected_auto
 
 
 @pytest.mark.asyncio
