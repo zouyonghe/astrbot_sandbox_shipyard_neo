@@ -162,7 +162,7 @@ async def test_shipyard_neo_terminate_detaches_even_if_cleanup_fails(monkeypatch
         ("detach", "shipyard_neo"),
         (
             "unregister",
-            "data.plugins.astrbot_sandbox_shipyard_neo.tools.shipyard_neo",
+            plugin_main.SHIPYARD_NEO_TOOL_MODULE_PREFIX,
         ),
     ]
 
@@ -202,9 +202,55 @@ async def test_shipyard_neo_terminate_detaches_on_successful_cleanup(monkeypatch
         ("detach", "shipyard_neo"),
         (
             "unregister",
-            "data.plugins.astrbot_sandbox_shipyard_neo.tools.shipyard_neo",
+            plugin_main.SHIPYARD_NEO_TOOL_MODULE_PREFIX,
         ),
     ]
+
+
+@pytest.mark.asyncio
+async def test_shipyard_neo_terminate_logs_unregister_failure_without_masking_cleanup(
+    monkeypatch,
+):
+    calls = []
+
+    class FakeProvider:
+        provider_id = "shipyard_neo"
+
+    async def fake_cleanup(provider_id):
+        calls.append(("cleanup", provider_id))
+
+    def fake_detach(provider_id):
+        calls.append(("detach", provider_id))
+
+    def fake_unregister(module_prefix):
+        calls.append(("unregister", module_prefix))
+        raise RuntimeError("unregister failed")
+
+    warnings = []
+
+    def fake_warning(*args, **kwargs):
+        warnings.append((args, kwargs))
+
+    monkeypatch.setattr(plugin_main, "cleanup_sandbox_provider", fake_cleanup)
+    monkeypatch.setattr(plugin_main, "detach_sandbox_provider", fake_detach)
+    monkeypatch.setattr(
+        plugin_main, "unregister_builtin_tools_by_module_prefix", fake_unregister
+    )
+    monkeypatch.setattr(plugin_main.logger, "warning", fake_warning)
+
+    plugin = plugin_main.ShipyardNeoSandboxRuntimePlugin.__new__(
+        plugin_main.ShipyardNeoSandboxRuntimePlugin
+    )
+    plugin.provider = FakeProvider()
+
+    await plugin.terminate()
+
+    assert calls == [
+        ("cleanup", "shipyard_neo"),
+        ("detach", "shipyard_neo"),
+        ("unregister", plugin_main.SHIPYARD_NEO_TOOL_MODULE_PREFIX),
+    ]
+    assert warnings
 
 
 def test_shipyard_neo_provider_update_connect_info_populates_legacy_persistent_name():
