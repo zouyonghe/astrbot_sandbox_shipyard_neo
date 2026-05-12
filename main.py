@@ -70,11 +70,26 @@ def _unregister_shipyard_neo_builtin_tools() -> list[str]:
     if callable(unregister):
         return unregister(SHIPYARD_NEO_TOOL_MODULE_PREFIX)
 
+    logger.debug(
+        "Falling back to manual Shipyard Neo builtin tool unregistration; "
+        "tool_registry.unregister_builtin_tools_by_module_prefix is unavailable or not callable."
+    )
+
+    # The fallback below mutates tool_registry's private caches because older core
+    # versions do not expose a public unregister helper. It assumes the internal
+    # name->class and class->name mappings stay in sync with the config rule map.
     removed: list[str] = []
     classes_by_name = getattr(tool_registry, "_builtin_tool_classes_by_name", None)
     names_by_class = getattr(tool_registry, "_builtin_tool_names_by_class", None)
     config_rules = getattr(tool_registry, "_BUILTIN_TOOL_CONFIG_RULES", None)
     if not isinstance(classes_by_name, dict) or not isinstance(names_by_class, dict):
+        logger.debug(
+            "Skipping manual Shipyard Neo builtin tool unregistration because "
+            "tool_registry private caches are missing or unexpected: classes_by_name=%s names_by_class=%s config_rules=%s",
+            type(classes_by_name).__name__,
+            type(names_by_class).__name__,
+            type(config_rules).__name__,
+        )
         return removed
 
     for tool_cls in list(names_by_class):
