@@ -139,8 +139,15 @@ async def test_shipyard_neo_terminate_detaches_even_if_cleanup_fails(monkeypatch
     def fake_detach(provider_id):
         calls.append(("detach", provider_id))
 
+    def fake_unregister(module_prefix):
+        calls.append(("unregister", module_prefix))
+        return ["astrbot_execute_browser"]
+
     monkeypatch.setattr(plugin_main, "cleanup_sandbox_provider", fake_cleanup)
     monkeypatch.setattr(plugin_main, "detach_sandbox_provider", fake_detach)
+    monkeypatch.setattr(
+        plugin_main, "unregister_builtin_tools_by_module_prefix", fake_unregister
+    )
 
     plugin = plugin_main.ShipyardNeoSandboxRuntimePlugin.__new__(
         plugin_main.ShipyardNeoSandboxRuntimePlugin
@@ -150,7 +157,14 @@ async def test_shipyard_neo_terminate_detaches_even_if_cleanup_fails(monkeypatch
     with pytest.raises(RuntimeError, match="cleanup failed"):
         await plugin.terminate()
 
-    assert calls == [("cleanup", "shipyard_neo"), ("detach", "shipyard_neo")]
+    assert calls == [
+        ("cleanup", "shipyard_neo"),
+        ("detach", "shipyard_neo"),
+        (
+            "unregister",
+            "data.plugins.astrbot_sandbox_shipyard_neo.tools.shipyard_neo",
+        ),
+    ]
 
 
 @pytest.mark.asyncio
@@ -166,8 +180,15 @@ async def test_shipyard_neo_terminate_detaches_on_successful_cleanup(monkeypatch
     def fake_detach(provider_id):
         calls.append(("detach", provider_id))
 
+    def fake_unregister(module_prefix):
+        calls.append(("unregister", module_prefix))
+        return ["astrbot_execute_browser"]
+
     monkeypatch.setattr(plugin_main, "cleanup_sandbox_provider", fake_cleanup)
     monkeypatch.setattr(plugin_main, "detach_sandbox_provider", fake_detach)
+    monkeypatch.setattr(
+        plugin_main, "unregister_builtin_tools_by_module_prefix", fake_unregister
+    )
 
     plugin = plugin_main.ShipyardNeoSandboxRuntimePlugin.__new__(
         plugin_main.ShipyardNeoSandboxRuntimePlugin
@@ -176,7 +197,14 @@ async def test_shipyard_neo_terminate_detaches_on_successful_cleanup(monkeypatch
 
     await plugin.terminate()
 
-    assert calls == [("cleanup", "shipyard_neo"), ("detach", "shipyard_neo")]
+    assert calls == [
+        ("cleanup", "shipyard_neo"),
+        ("detach", "shipyard_neo"),
+        (
+            "unregister",
+            "data.plugins.astrbot_sandbox_shipyard_neo.tools.shipyard_neo",
+        ),
+    ]
 
 
 def test_shipyard_neo_provider_update_connect_info_populates_legacy_persistent_name():
