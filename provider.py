@@ -144,11 +144,13 @@ class ShipyardNeoSandboxProvider:
 
     def get_idle_timeout(self, context: Context, session_id: str) -> float:
         merged = self._merged_sandbox_config(context, session_id)
-        return resolve_sandbox_timeout(
-            merged,
-            _SHIPYARD_NEO_IDLE_TIMEOUT_KEY,
-            aliases=_SHIPYARD_NEO_IDLE_TIMEOUT_ALIASES,
-            default=_SHIPYARD_NEO_DEFAULT_IDLE_TIMEOUT_SECONDS,
+        return float(
+            resolve_sandbox_timeout(
+                merged,
+                _SHIPYARD_NEO_IDLE_TIMEOUT_KEY,
+                aliases=_SHIPYARD_NEO_IDLE_TIMEOUT_ALIASES,
+                default=_SHIPYARD_NEO_DEFAULT_IDLE_TIMEOUT_SECONDS,
+            )
         )
 
     async def check_persistent_sandbox_exists(self, record: dict) -> bool:

@@ -53,12 +53,14 @@ class ShipyardNeoSandboxRuntimePlugin(Star):
                 )
 
     def _clear_shipyard_neo_builtin_tool_cache(self) -> None:
-        _clear_shipyard_neo_builtin_tool_cache(getattr(self, "context", None))
+        _clear_shipyard_neo_builtin_tool_cache_for_context(
+            getattr(self, "context", None)
+        )
 
 
 def _finalize_shipyard_neo_provider(provider_id: str, context: Context | None) -> None:
     detach_sandbox_provider(provider_id)
-    _clear_shipyard_neo_builtin_tool_cache(context)
+    _clear_shipyard_neo_builtin_tool_cache_for_context(context)
     try:
         removed = _unregister_shipyard_neo_builtin_tools()
     except Exception:
@@ -76,7 +78,9 @@ def _finalize_shipyard_neo_provider(provider_id: str, context: Context | None) -
             )
 
 
-def _clear_shipyard_neo_builtin_tool_cache(context: Context | None) -> None:
+def _clear_shipyard_neo_builtin_tool_cache_for_context(
+    context: Context | None,
+) -> None:
     get_tool_manager = getattr(context, "get_llm_tool_manager", None)
     if not callable(get_tool_manager):
         if context is None:
@@ -108,6 +112,44 @@ def _clear_shipyard_neo_builtin_tool_cache(context: Context | None) -> None:
 
 
 def _unregister_shipyard_neo_builtin_tools() -> list[str]:
-    return tool_registry.unregister_builtin_tools_by_module_prefix(
-        SHIPYARD_NEO_TOOL_MODULE_PREFIX
+    unregister_by_prefix = getattr(
+        tool_registry, "unregister_builtin_tools_by_module_prefix", None
     )
+    if callable(unregister_by_prefix):
+        return unregister_by_prefix(SHIPYARD_NEO_TOOL_MODULE_PREFIX)
+
+    removed: list[str] = []
+    iter_builtin_tool_classes = getattr(
+        tool_registry, "iter_builtin_tool_classes", None
+    )
+    unregister_tool_class = getattr(
+        tool_registry, "unregister_builtin_tool_class", None
+    )
+    if callable(iter_builtin_tool_classes) and callable(unregister_tool_class):
+        for tool_cls in tuple(iter_builtin_tool_classes()):
+            if not getattr(tool_cls, "__module__", "").startswith(
+                SHIPYARD_NEO_TOOL_MODULE_PREFIX
+            ):
+                continue
+            tool_name = unregister_tool_class(tool_cls)
+            if tool_name is not None:
+                removed.append(tool_name)
+        return removed
+
+    classes_by_name = getattr(tool_registry, "_builtin_tool_classes_by_name", None)
+    names_by_class = getattr(tool_registry, "_builtin_tool_names_by_class", None)
+    if not isinstance(classes_by_name, dict) or not isinstance(names_by_class, dict):
+        logger.warning(
+            "Shipyard Neo builtin tool unregister API is unavailable; skipping compatibility fallback"
+        )
+        return removed
+
+    for tool_name, tool_cls in list(classes_by_name.items()):
+        if not getattr(tool_cls, "__module__", "").startswith(
+            SHIPYARD_NEO_TOOL_MODULE_PREFIX
+        ):
+            continue
+        classes_by_name.pop(tool_name, None)
+        names_by_class.pop(tool_cls, None)
+        removed.append(tool_name)
+    return removed

@@ -273,6 +273,53 @@ def test_shipyard_neo_finalize_swallows_builtin_tool_cache_errors(monkeypatch):
     ]
 
 
+def test_shipyard_neo_unregister_builtin_tools_uses_compatibility_fallback(
+    monkeypatch,
+):
+    class FakeTool:
+        __module__ = f"{SHIPYARD_NEO_TOOL_MODULE_PREFIX}.browser"
+
+    classes_by_name = {"astrbot_execute_browser": FakeTool}
+    names_by_class = {FakeTool: "astrbot_execute_browser"}
+
+    monkeypatch.setattr(
+        plugin_main.tool_registry,
+        "unregister_builtin_tools_by_module_prefix",
+        None,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        plugin_main.tool_registry,
+        "iter_builtin_tool_classes",
+        None,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        plugin_main.tool_registry,
+        "unregister_builtin_tool_class",
+        None,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        plugin_main.tool_registry,
+        "_builtin_tool_classes_by_name",
+        classes_by_name,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        plugin_main.tool_registry,
+        "_builtin_tool_names_by_class",
+        names_by_class,
+        raising=False,
+    )
+
+    removed = plugin_main._unregister_shipyard_neo_builtin_tools()
+
+    assert removed == ["astrbot_execute_browser"]
+    assert classes_by_name == {}
+    assert names_by_class == {}
+
+
 @pytest.mark.asyncio
 async def test_shipyard_neo_terminate_logs_unregister_failure_without_masking_cleanup(
     monkeypatch,
