@@ -31,18 +31,12 @@ git clone https://github.com/zouyonghe/astrbot_sandbox_shipyard_neo.git data/plu
 
 ### 启用 Shipyard Neo 沙盒驱动
 
-先在 AstrBot 核心配置中启用沙盒模式，并把沙盒驱动设置为 `shipyard_neo`：
+在 AstrBot 仪表盘中启用沙盒模式，并选择 `shipyard_neo` 驱动。
 
-```json
-{
-  "provider_settings": {
-    "computer_use_runtime": "sandbox",
-    "sandbox": {
-      "booter": "shipyard_neo"
-    }
-  }
-}
-```
+对应配置路径：
+
+- `provider_settings.computer_use_runtime`：`sandbox`
+- `provider_settings.sandbox.booter`：`shipyard_neo`
 
 ## 配置项
 

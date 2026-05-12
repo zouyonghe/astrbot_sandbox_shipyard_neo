@@ -31,18 +31,12 @@ Then restart AstrBot, or reload plugins from the plugin management page.
 
 ### Enable the Shipyard Neo Sandbox Driver
 
-Enable sandbox mode in AstrBot and select the `shipyard_neo` sandbox driver:
+In the AstrBot dashboard, enable sandbox mode and select the `shipyard_neo` driver.
 
-```json
-{
-  "provider_settings": {
-    "computer_use_runtime": "sandbox",
-    "sandbox": {
-      "booter": "shipyard_neo"
-    }
-  }
-}
-```
+Configuration path:
+
+- `provider_settings.computer_use_runtime`: `sandbox`
+- `provider_settings.sandbox.booter`: `shipyard_neo`
 
 ## Configuration
 
