@@ -31,26 +31,20 @@ Then restart AstrBot, or reload plugins from the plugin management page.
 
 ### Enable the Shipyard Neo Sandbox Driver
 
-Enable sandbox mode in AstrBot and select the `shipyard_neo` sandbox driver:
+In the AstrBot dashboard, enable sandbox mode and select the `shipyard_neo` driver.
 
-```json
-{
-  "provider_settings": {
-    "computer_use_runtime": "sandbox",
-    "sandbox": {
-      "booter": "shipyard_neo"
-    }
-  }
-}
-```
+Configuration path:
+
+- `provider_settings.computer_use_runtime`: `sandbox`
+- `provider_settings.sandbox.booter`: `shipyard_neo`
 
 ## Configuration
 
 | Key | Description |
 | --- | --- |
-| `shipyard_neo_endpoint` | Bay / Shipyard Neo API endpoint. Defaults to `http://127.0.0.1:8114`. |
+| `shipyard_neo_endpoint` | Bay / Shipyard Neo API endpoint. Defaults to `http://127.0.0.1:8114`. Use a service name when AstrBot and Bay share a Docker network. |
 | `shipyard_neo_access_token` | Bay API key. If empty, local auto-start generates one and external endpoints try auto-discovery. |
-| `shipyard_neo_profile` | Sandbox profile, for example `python-default`. |
+| `shipyard_neo_profile` | Sandbox profile. Keep `python-default` or leave it empty to let Bay auto-select the best profile, or fill in a profile id returned by Bay. |
 | `shipyard_neo_ttl` | Sandbox TTL in seconds. |
 
 If AstrBot and Bay run in the same Docker Compose network, set `shipyard_neo_endpoint` to the Bay service name and make sure AstrBot can reach that network.
@@ -76,3 +70,8 @@ Credential auto-discovery checks:
 - This plugin depends on a working Bay / Shipyard Neo deployment.
 - Browser behavior depends on the selected profile and upstream runtime support.
 - If you only need shell or file operations, classic Shipyard or BoxLite is usually lighter.
+
+## Troubleshooting
+
+- If local auto-start does not produce a working endpoint, make sure Docker is available and the default endpoint is still `http://127.0.0.1:8114`.
+- If profile selection is unclear, keep `shipyard_neo_profile` as `python-default` and let Bay choose the best available profile.

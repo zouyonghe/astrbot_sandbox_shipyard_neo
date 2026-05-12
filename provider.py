@@ -72,6 +72,10 @@ class ShipyardNeoSandboxProvider:
         )
         self._boot_hook = boot_hook
 
+    @staticmethod
+    def _persistent_name(config: dict, fallback: str) -> str:
+        return str(config.get("persistent_name") or fallback).strip()
+
     def _merged_sandbox_config(self, context: Context, session_id: str) -> dict:
         """Return sandbox config with plugin_config as base and user settings overriding."""
         config = context.get_config(umo=session_id)
@@ -103,7 +107,9 @@ class ShipyardNeoSandboxProvider:
         return {
             "endpoint_url": endpoint,
             "access_token": token,
-            "profile": merged.get("shipyard_neo_profile", "python-default"),
+            "profile": merged.get(
+                "shipyard_neo_profile", ShipyardNeoBooter.DEFAULT_PROFILE
+            ),
             "ttl": merged.get("shipyard_neo_ttl", 3600),
         }
 
@@ -112,15 +118,15 @@ class ShipyardNeoSandboxProvider:
             "name": sandbox_name,
             "endpoint_url": config.get("endpoint_url"),
             "profile": config.get("profile"),
-            "persistent_name": config.get("persistent_name") or sandbox_name,
+            "persistent_name": self._persistent_name(config, sandbox_name),
             "sandbox_id": config.get("sandbox_id"),
         }
 
     def update_connect_info(self, record: dict, *, sandbox_name: str) -> dict:
         connect_info = dict(record.get("connect_info") or {})
         connect_info["name"] = sandbox_name
-        connect_info["persistent_name"] = (
-            connect_info.get("persistent_name") or sandbox_name
+        connect_info["persistent_name"] = self._persistent_name(
+            connect_info, sandbox_name
         )
         return connect_info
 
@@ -172,7 +178,7 @@ class ShipyardNeoSandboxProvider:
         booter_config = {
             **{key: value for key, value in config.items() if key != "sandbox_id"},
             "persistent": True,
-            "persistent_name": str(config.get("persistent_name") or sandbox_id).strip(),
+            "persistent_name": self._persistent_name(config, sandbox_id),
             "resume": bool(config.get("resume", False)),
             "existing_sandbox_id": config.get("sandbox_id"),
             "sandbox_id": sandbox_id,

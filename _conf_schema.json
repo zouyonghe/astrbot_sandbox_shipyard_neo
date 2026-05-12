@@ -3,19 +3,19 @@
     "description": "Shipyard Neo API 地址",
     "type": "string",
     "default": "http://127.0.0.1:8114",
-    "hint": "Bay / Shipyard Neo 服务的 API 地址。默认值会触发本机 Bay 自动启动。"
+    "hint": "Bay / Shipyard Neo 服务的 API 地址。默认值会触发本机 Bay 自动启动；如果和 Bay 运行在同一个 Docker 网络中，也可以填写服务名。"
   },
   "shipyard_neo_access_token": {
     "description": "Shipyard Neo 访问令牌",
     "type": "string",
     "default": "",
-    "hint": "Bay API Key。留空时会自动从 credentials.json 发现。"
+    "hint": "Bay API Key。留空时，本机自动启动会生成新密钥；外部端点会尝试从 credentials.json 自动发现。"
   },
   "shipyard_neo_profile": {
     "description": "Shipyard Neo Profile",
     "type": "string",
     "default": "python-default",
-    "hint": "Shipyard Neo 沙箱 profile，例如 python-default。"
+    "hint": "Shipyard Neo 沙箱 profile。保留默认值或留空时，Bay 会自动选择最合适的 profile；手动填写时请使用 Bay 返回的 profile id。"
   },
   "shipyard_neo_ttl": {
     "description": "Shipyard Neo 沙箱存活时间",
