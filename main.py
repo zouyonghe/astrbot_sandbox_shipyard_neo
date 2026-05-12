@@ -7,6 +7,7 @@ from astrbot.core.computer.computer_client import (
     detach_sandbox_provider,
     register_sandbox_provider,
 )
+from astrbot.core.tools.registry import unregister_builtin_tools_by_module_prefix
 
 from .provider import ShipyardNeoSandboxProvider
 
@@ -28,13 +29,10 @@ class ShipyardNeoSandboxRuntimePlugin(Star):
 
     async def terminate(self) -> None:
         provider = getattr(self, "provider", None)
-        if provider is None:
-            return
-        provider_id = getattr(provider, "provider_id", None)
-        if not provider_id:
-            return
+        provider_id = getattr(provider, "provider_id", None) if provider else None
         try:
-            await cleanup_sandbox_provider(provider_id)
+            if provider_id:
+                await cleanup_sandbox_provider(provider_id)
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -45,4 +43,14 @@ class ShipyardNeoSandboxRuntimePlugin(Star):
             )
             raise
         finally:
-            detach_sandbox_provider(provider_id)
+            if provider_id:
+                detach_sandbox_provider(provider_id)
+            removed = unregister_builtin_tools_by_module_prefix(
+                "data.plugins.astrbot_sandbox_shipyard_neo.tools.shipyard_neo"
+            )
+            if removed:
+                logger.info(
+                    "Unregistered %d builtin tool(s) for Shipyard Neo: %s",
+                    len(removed),
+                    ", ".join(removed),
+                )
