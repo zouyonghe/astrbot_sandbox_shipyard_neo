@@ -28,6 +28,20 @@ _SHIPYARD_NEO_IDLE_TIMEOUT_ALIASES = ("shipyard_neo_idle_timeout",)
 _SHIPYARD_NEO_DEFAULT_IDLE_TIMEOUT_SECONDS = 0.0
 
 
+def _is_docker_unavailable_error(exc: Exception) -> bool:
+    detail = str(exc).lower()
+    return any(
+        marker in detail
+        for marker in (
+            "cannot connect to docker engine",
+            "failed to connect to docker daemon",
+            "docker is not installed or not running",
+            "docker daemon",
+            "docker.sock",
+        )
+    )
+
+
 def _discover_bay_credentials(endpoint: str) -> str:
     candidates: list[Path] = []
     bay_data_dir = os.environ.get("BAY_DATA_DIR")
@@ -206,7 +220,12 @@ class ShipyardNeoSandboxProvider:
         client = ShipyardNeoBooter(
             **booter_config,
         )
-        await client.boot(uuid.uuid5(uuid.NAMESPACE_DNS, session_id).hex)
+        try:
+            await client.boot(uuid.uuid5(uuid.NAMESPACE_DNS, session_id).hex)
+        except Exception as exc:
+            if _is_docker_unavailable_error(exc):
+                raise RuntimeError("Docker is not installed or not running") from exc
+            raise
         return client
 
     async def destroy_booter(self, booter: ComputerBooter, record: dict) -> None:
