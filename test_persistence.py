@@ -144,6 +144,29 @@ def test_shipyard_neo_provider_rejects_invalid_autostart_setting():
         provider.build_create_config(context, "dashboard")
 
 
+@pytest.mark.parametrize(
+    ("endpoint", "is_auto_mode", "expected"),
+    [
+        (DEFAULT_SHIPYARD_NEO_ENDPOINT, None, True),
+        ("http://127.0.0.1:9000", None, False),
+        ("http://127.0.0.1:9000", True, True),
+        (DEFAULT_SHIPYARD_NEO_ENDPOINT, False, False),
+    ],
+)
+def test_shipyard_neo_booter_resolves_auto_start_mode(
+    endpoint,
+    is_auto_mode,
+    expected,
+):
+    booter = shipyard_neo.ShipyardNeoBooter(
+        endpoint_url=endpoint,
+        access_token="token",
+        is_auto_mode=is_auto_mode,
+    )
+
+    assert booter._should_auto_start() is expected
+
+
 @pytest.mark.asyncio
 async def test_shipyard_neo_provider_autostart_false_disables_default_endpoint_autostart(
     monkeypatch,
