@@ -143,6 +143,19 @@ class ShipyardNeoSandboxProvider:
         )
         return connect_info
 
+    def update_connect_info_after_boot(self, record: dict, booter: ComputerBooter):
+        runtime_sandbox = getattr(booter, "sandbox", None)
+        runtime_sandbox_id = str(getattr(runtime_sandbox, "id", "") or "").strip()
+        if not runtime_sandbox_id:
+            return None
+        connect_info = dict(record.get("connect_info") or {})
+        connect_info["sandbox_id"] = runtime_sandbox_id
+        connect_info.setdefault(
+            "persistent_name",
+            str(record.get("sandbox_id") or runtime_sandbox_id).strip(),
+        )
+        return connect_info
+
     def get_idle_timeout(self, context: Context, session_id: str) -> float:
         merged = self._merged_sandbox_config(context, session_id)
         return float(

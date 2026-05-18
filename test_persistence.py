@@ -443,6 +443,26 @@ def test_shipyard_neo_provider_update_connect_info_preserves_existing_persistent
     assert updated["persistent_name"] == "Original"
 
 
+def test_shipyard_neo_provider_updates_runtime_sandbox_id_after_boot():
+    provider = provider_module.ShipyardNeoSandboxProvider()
+    booter = SimpleNamespace(sandbox=SimpleNamespace(id="bay-sbx-1"))
+
+    updated = provider.update_connect_info_after_boot(
+        {
+            "sandbox_id": "shipyard_neo-1",
+            "connect_info": {
+                "name": "Neo",
+                "persistent_name": "shipyard_neo-1",
+                "sandbox_id": "shipyard_neo-1",
+            },
+        },
+        booter,
+    )
+
+    assert updated["sandbox_id"] == "bay-sbx-1"
+    assert updated["persistent_name"] == "shipyard_neo-1"
+
+
 @pytest.mark.asyncio
 async def test_shipyard_neo_provider_passes_reconnect_metadata(monkeypatch):
     recorded = {}
