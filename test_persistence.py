@@ -924,6 +924,7 @@ def test_bay_manager_includes_api_key_env_when_token_is_configured():
 
 def test_bay_manager_configures_pullable_default_profile_image():
     from data.plugins.astrbot_sandbox_shipyard_neo.booters.bay_manager import (
+        DEFAULT_GULL_RUNTIME_IMAGE,
         DEFAULT_SHIP_RUNTIME_IMAGE,
         BayContainerManager,
     )
@@ -934,16 +935,47 @@ def test_bay_manager_configures_pullable_default_profile_image():
 
     profiles = json.loads(profiles_env.removeprefix("BAY_PROFILES="))
 
-    assert profiles[0]["id"] == "python-default"
-    assert profiles[0]["image"] == DEFAULT_SHIP_RUNTIME_IMAGE
-    assert profiles[0]["resources"] == {"cpus": 1.0, "memory": "1g"}
-    assert profiles[0]["capabilities"] == [
-        "filesystem",
-        "shell",
-        "python",
-        "browser",
+    python_profile = next(item for item in profiles if item["id"] == "python-default")
+    browser_profile = next(item for item in profiles if item["id"] == "browser-python")
+
+    assert python_profile["image"] == DEFAULT_SHIP_RUNTIME_IMAGE
+    assert python_profile["resources"] == {"cpus": 1.0, "memory": "1g"}
+    assert python_profile["capabilities"] == ["filesystem", "shell", "python"]
+    assert python_profile["idle_timeout"] == 1800
+
+    assert browser_profile["description"] == "Browser automation with Python backend"
+    assert browser_profile["idle_timeout"] == 1800
+    assert browser_profile["containers"] == [
+        {
+            "name": "ship",
+            "image": DEFAULT_SHIP_RUNTIME_IMAGE,
+            "runtime_type": "ship",
+            "runtime_port": 8123,
+            "resources": {"cpus": 1.0, "memory": "1g"},
+            "capabilities": ["filesystem", "shell", "python"],
+            "primary_for": ["filesystem", "shell", "python"],
+            "env": {},
+        },
+        {
+            "name": "browser",
+            "image": DEFAULT_GULL_RUNTIME_IMAGE,
+            "runtime_type": "gull",
+            "runtime_port": 8115,
+            "resources": {"cpus": 1.0, "memory": "2g"},
+            "capabilities": ["browser"],
+            "env": {},
+        },
     ]
-    assert profiles[0]["idle_timeout"] == 1800
+    assert sorted(
+        capability
+        for container in browser_profile["containers"]
+        for capability in container["capabilities"]
+    ) == [
+        "browser",
+        "filesystem",
+        "python",
+        "shell",
+    ]
 
 
 def test_shipyard_neo_browser_property_reports_missing_capability():
@@ -956,6 +988,32 @@ def test_shipyard_neo_browser_property_reports_missing_capability():
 
     with pytest.raises(RuntimeError, match="does not include browser capability"):
         booter.browser
+
+
+@pytest.mark.asyncio
+async def test_shipyard_neo_resolve_profile_prefers_browser_python():
+    from data.plugins.astrbot_sandbox_shipyard_neo.booters.shipyard_neo import (
+        ShipyardNeoBooter,
+    )
+
+    class FakeClient:
+        async def list_profiles(self):
+            return SimpleNamespace(
+                items=[
+                    SimpleNamespace(
+                        id="python-default",
+                        capabilities=["filesystem", "shell", "python"],
+                    ),
+                    SimpleNamespace(
+                        id="browser-python",
+                        capabilities=["filesystem", "shell", "python", "browser"],
+                    ),
+                ]
+            )
+
+    booter = ShipyardNeoBooter(endpoint_url="https://example.com", access_token="token")
+
+    assert await booter._resolve_profile(FakeClient()) == "browser-python"
 
 
 def test_bay_manager_detects_mismatched_existing_container_env():
