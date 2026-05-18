@@ -54,6 +54,15 @@ def _slice_content_by_lines(
     return "".join(selected)
 
 
+def should_auto_start_shipyard_neo(
+    endpoint_url: str,
+    is_auto_mode: bool | None,
+) -> bool:
+    if is_auto_mode is None:
+        return is_shipyard_neo_auto_endpoint(endpoint_url)
+    return is_auto_mode
+
+
 class NeoPythonComponent(PythonComponent):
     def __init__(self, sandbox: Sandbox) -> None:
         self._sandbox = sandbox
@@ -392,9 +401,7 @@ class ShipyardNeoBooter(ComputerBooter):
         return self._client
 
     def _should_auto_start(self) -> bool:
-        if self._is_auto_mode is None:
-            return is_shipyard_neo_auto_endpoint(self._endpoint_url)
-        return self._is_auto_mode
+        return should_auto_start_shipyard_neo(self._endpoint_url, self._is_auto_mode)
 
     @property
     def sandbox(self) -> Any:

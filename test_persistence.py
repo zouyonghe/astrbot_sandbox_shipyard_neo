@@ -158,13 +158,9 @@ def test_shipyard_neo_booter_resolves_auto_start_mode(
     is_auto_mode,
     expected,
 ):
-    booter = shipyard_neo.ShipyardNeoBooter(
-        endpoint_url=endpoint,
-        access_token="token",
-        is_auto_mode=is_auto_mode,
+    assert (
+        shipyard_neo.should_auto_start_shipyard_neo(endpoint, is_auto_mode) is expected
     )
-
-    assert booter._should_auto_start() is expected
 
 
 @pytest.mark.asyncio
@@ -188,13 +184,6 @@ async def test_shipyard_neo_provider_preserves_autostart_auto_detect_when_omitte
 
         def __init__(self, **kwargs):
             recorded.update(kwargs)
-            self._endpoint_url = kwargs["endpoint_url"]
-            self._is_auto_mode = kwargs["is_auto_mode"]
-
-        def _should_auto_start(self):
-            if self._is_auto_mode is None:
-                return is_shipyard_neo_auto_endpoint(self._endpoint_url)
-            return self._is_auto_mode
 
         async def boot(self, session_id: str):
             recorded["boot_session_id"] = session_id
@@ -212,10 +201,16 @@ async def test_shipyard_neo_provider_preserves_autostart_auto_detect_when_omitte
     )
 
     config = provider.build_create_config(context, "dashboard")
-    booter = await provider.create_booter(context, "dashboard", "neo-1", config)
+    await provider.create_booter(context, "dashboard", "neo-1", config)
 
     assert recorded["is_auto_mode"] is None
-    assert booter._should_auto_start() is expected
+    assert (
+        shipyard_neo.should_auto_start_shipyard_neo(
+            recorded["endpoint_url"],
+            recorded["is_auto_mode"],
+        )
+        is expected
+    )
 
 
 @pytest.mark.asyncio
