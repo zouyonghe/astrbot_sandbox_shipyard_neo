@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -55,6 +56,20 @@ def test_shipyard_neo_provider_connect_info_tracks_sandbox_id():
 
     assert info["persistent_name"] == "neo-1"
     assert info["sandbox_id"] == "sbx_123"
+
+
+def test_shipyard_neo_provider_tool_names_derive_from_registered_tool_classes():
+    from data.plugins.astrbot_sandbox_shipyard_neo.tools.shipyard_neo import (
+        SHIPYARD_NEO_TOOL_CLASSES,
+        build_shipyard_neo_tools,
+    )
+
+    assert provider_module.ShipyardNeoSandboxProvider.tool_names == {
+        tool_cls.name for tool_cls in SHIPYARD_NEO_TOOL_CLASSES
+    }
+    assert provider_module.ShipyardNeoSandboxProvider.tool_names == {
+        tool.name for tool in build_shipyard_neo_tools()
+    }
 
 
 def test_shipyard_neo_provider_defaults_to_local_endpoint_when_unconfigured():
@@ -924,8 +939,11 @@ def test_bay_manager_includes_api_key_env_when_token_is_configured():
 
 def test_bay_manager_configures_pullable_default_profile_image():
     from data.plugins.astrbot_sandbox_shipyard_neo.booters.bay_manager import (
+        BROWSER_PYTHON_PROFILE_ID,
+        DEFAULT_BAY_PROFILES,
         DEFAULT_GULL_RUNTIME_IMAGE,
         DEFAULT_SHIP_RUNTIME_IMAGE,
+        PYTHON_DEFAULT_PROFILE_ID,
         BayContainerManager,
     )
 
@@ -935,8 +953,15 @@ def test_bay_manager_configures_pullable_default_profile_image():
 
     profiles = json.loads(profiles_env.removeprefix("BAY_PROFILES="))
 
-    python_profile = next(item for item in profiles if item["id"] == "python-default")
-    browser_profile = next(item for item in profiles if item["id"] == "browser-python")
+    assert profiles == DEFAULT_BAY_PROFILES
+    assert profiles is not DEFAULT_BAY_PROFILES
+
+    python_profile = next(
+        item for item in profiles if item["id"] == PYTHON_DEFAULT_PROFILE_ID
+    )
+    browser_profile = next(
+        item for item in profiles if item["id"] == BROWSER_PYTHON_PROFILE_ID
+    )
 
     assert python_profile["image"] == DEFAULT_SHIP_RUNTIME_IMAGE
     assert python_profile["resources"] == {"cpus": 1.0, "memory": "1g"}
@@ -976,6 +1001,21 @@ def test_bay_manager_configures_pullable_default_profile_image():
         "python",
         "shell",
     ]
+
+
+def test_docs_reference_default_bay_profile_ids():
+    from data.plugins.astrbot_sandbox_shipyard_neo.booters.bay_manager import (
+        BROWSER_PYTHON_PROFILE_ID,
+        PYTHON_DEFAULT_PROFILE_ID,
+    )
+
+    readme = Path("README.md").read_text(encoding="utf-8")
+    readme_cn = Path("README_cn.md").read_text(encoding="utf-8")
+    schema = Path("_conf_schema.json").read_text(encoding="utf-8")
+
+    for content in (readme, readme_cn, schema):
+        assert PYTHON_DEFAULT_PROFILE_ID in content
+        assert BROWSER_PYTHON_PROFILE_ID in content
 
 
 def test_shipyard_neo_browser_property_reports_missing_capability():
