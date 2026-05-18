@@ -401,16 +401,16 @@ async def test_shipyard_neo_terminate_logs_unregister_failure_without_masking_cl
     assert warning.exc_info
 
 
-def test_shipyard_neo_provider_update_connect_info_populates_legacy_persistent_name():
+def test_shipyard_neo_provider_update_connect_info_populates_legacy_persistent_name_from_sandbox_id():
     provider = provider_module.ShipyardNeoSandboxProvider()
 
     updated = provider.update_connect_info(
-        {"connect_info": {"name": "Legacy"}},
+        {"sandbox_id": "neo-runtime-1", "connect_info": {"name": "Legacy"}},
         sandbox_name="Renamed",
     )
 
     assert updated["name"] == "Renamed"
-    assert updated["persistent_name"] == "Renamed"
+    assert updated["persistent_name"] == "neo-runtime-1"
 
 
 def test_shipyard_neo_provider_update_connect_info_preserves_existing_persistent_name():
