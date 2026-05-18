@@ -382,7 +382,7 @@ class ShipyardNeoBooter(ComputerBooter):
         self._access_token = access_token
         self._profile = profile
         self._ttl = ttl
-        self._is_auto_mode = is_auto_mode
+        self.is_auto_mode = is_auto_mode
         self._persistent = persistent
         self._persistent_name = persistent_name
         self._resume = resume
@@ -401,7 +401,7 @@ class ShipyardNeoBooter(ComputerBooter):
         return self._client
 
     def _should_auto_start(self) -> bool:
-        return should_auto_start_shipyard_neo(self._endpoint_url, self._is_auto_mode)
+        return should_auto_start_shipyard_neo(self._endpoint_url, self.is_auto_mode)
 
     @property
     def sandbox(self) -> Any:
