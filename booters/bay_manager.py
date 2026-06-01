@@ -190,7 +190,7 @@ class BayContainerManager:
             f"BAY_SERVER__PORT={BAY_PORT}",
             "BAY_DATA_DIR=/app/data",
             f"BAY_PROFILES={json.dumps(self.build_default_profiles())}",
-            f"BAY_DOCKER__NETWORK={DEFAULT_BAY_NETWORK}",
+            f"BAY_DRIVER__DOCKER__NETWORK={DEFAULT_BAY_NETWORK}",
             # allow_anonymous=false lets Bay auto-provision when no key is supplied.
             "BAY_SECURITY__ALLOW_ANONYMOUS=false",
         ]
