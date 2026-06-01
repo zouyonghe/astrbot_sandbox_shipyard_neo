@@ -87,16 +87,68 @@ def test_shipyard_neo_provider_connect_info_uses_astrbot_sandbox_id_for_persiste
 
 def test_shipyard_neo_provider_tool_names_derive_from_registered_tool_classes():
     from data.plugins.astrbot_sandbox_shipyard_neo.tools.shipyard_neo import (
+        BROWSER_TOOL_NAMES,
         SHIPYARD_NEO_TOOL_CLASSES,
         build_shipyard_neo_tools,
+        tool_names_for_profile,
     )
 
-    assert provider_module.ShipyardNeoSandboxProvider.tool_names == {
-        tool_cls.name for tool_cls in SHIPYARD_NEO_TOOL_CLASSES
-    }
-    assert provider_module.ShipyardNeoSandboxProvider.tool_names == {
-        tool.name for tool in build_shipyard_neo_tools()
-    }
+    assert (
+        provider_module.ShipyardNeoSandboxProvider().tool_names
+        == {tool_cls.name for tool_cls in SHIPYARD_NEO_TOOL_CLASSES}
+        - BROWSER_TOOL_NAMES
+    )
+    assert {tool.name for tool in build_shipyard_neo_tools("python-default")} == (
+        tool_names_for_profile("python-default")
+    )
+    assert BROWSER_TOOL_NAMES.isdisjoint(tool_names_for_profile("python-default"))
+    assert BROWSER_TOOL_NAMES <= {tool.name for tool in build_shipyard_neo_tools()}
+
+
+def test_shipyard_neo_provider_enables_browser_tools_for_browser_profile():
+    from data.plugins.astrbot_sandbox_shipyard_neo.tools.shipyard_neo import (
+        BROWSER_TOOL_NAMES,
+    )
+
+    provider = provider_module.ShipyardNeoSandboxProvider(
+        plugin_config={"shipyard_neo_profile": "browser-python"}
+    )
+
+    assert "browser" in provider.capabilities
+    assert BROWSER_TOOL_NAMES <= provider.tool_names
+
+
+def test_shipyard_neo_provider_excludes_browser_tools_for_python_default():
+    from data.plugins.astrbot_sandbox_shipyard_neo.tools.shipyard_neo import (
+        BROWSER_TOOL_NAMES,
+    )
+
+    provider = provider_module.ShipyardNeoSandboxProvider(
+        plugin_config={"shipyard_neo_profile": "python-default"}
+    )
+
+    assert "browser" not in provider.capabilities
+    assert BROWSER_TOOL_NAMES.isdisjoint(provider.tool_names)
+
+
+def test_shipyard_neo_provider_normalizes_none_profile_consistently():
+    from data.plugins.astrbot_sandbox_shipyard_neo.tools.shipyard_neo import (
+        BROWSER_TOOL_NAMES,
+    )
+
+    provider = provider_module.ShipyardNeoSandboxProvider(
+        plugin_config={"shipyard_neo_profile": None}
+    )
+    context = SimpleNamespace(
+        get_config=lambda umo: {"provider_settings": {"sandbox": {}}}
+    )
+
+    config = provider.build_create_config(context, "dashboard")
+
+    assert provider.configured_profile == ""
+    assert config["profile"] == ""
+    assert "browser" in provider.capabilities
+    assert BROWSER_TOOL_NAMES <= provider.tool_names
 
 
 def test_shipyard_neo_provider_defaults_to_local_endpoint_when_unconfigured():
