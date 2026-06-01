@@ -354,9 +354,14 @@ class BayContainerManager:
             if info.get("Name") == DEFAULT_BAY_NETWORK:
                 return
 
-        await self._docker.networks.create(
-            {"Name": DEFAULT_BAY_NETWORK, "Driver": "bridge"}
-        )
+        try:
+            await self._docker.networks.create(
+                {"Name": DEFAULT_BAY_NETWORK, "Driver": "bridge"}
+            )
+        except aiodocker.exceptions.DockerError as exc:
+            if exc.status == 409:
+                return
+            raise
         logger.info("[BayManager] Created Docker network: %s", DEFAULT_BAY_NETWORK)
 
     async def _pull_image_if_needed(self) -> None:
