@@ -37,6 +37,21 @@ class FakeReadySandbox:
         return None
 
 
+def make_fake_bay_client(recorded: dict, sandbox_id: str):
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def create_sandbox(self, *, profile: str, ttl: int):
+            recorded["create_kwargs"] = {"profile": profile, "ttl": ttl}
+            return FakeReadySandbox(sandbox_id)
+
+    return lambda **kwargs: FakeClient()
+
+
 def test_shipyard_neo_provider_connect_info_tracks_sandbox_id():
     provider = provider_module.ShipyardNeoSandboxProvider()
     assert (
@@ -678,24 +693,9 @@ async def test_shipyard_neo_booter_creates_persistent_sandbox_without_expiry(
     )
 
     recorded = {}
-
-    class FakeClient:
-        def __init__(self, **kwargs):
-            recorded["client_kwargs"] = kwargs
-
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *args):
-            return None
-
-        async def create_sandbox(self, *, profile: str, ttl: int):
-            recorded["create_kwargs"] = {"profile": profile, "ttl": ttl}
-            return FakeReadySandbox("sbx_persistent")
-
     monkeypatch.setattr(
         "data.plugins.astrbot_sandbox_shipyard_neo.booters.shipyard_neo.BayClient",
-        FakeClient,
+        make_fake_bay_client(recorded, "sbx_persistent"),
     )
 
     async def fake_resolve_profile(self, client):
@@ -725,21 +725,9 @@ async def test_shipyard_neo_booter_preserves_ttl_for_non_persistent_sandbox(
     )
 
     recorded = {}
-
-    class FakeClient:
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *args):
-            return None
-
-        async def create_sandbox(self, *, profile: str, ttl: int):
-            recorded["create_kwargs"] = {"profile": profile, "ttl": ttl}
-            return FakeReadySandbox("sbx_temporary")
-
     monkeypatch.setattr(
         "data.plugins.astrbot_sandbox_shipyard_neo.booters.shipyard_neo.BayClient",
-        lambda **kwargs: FakeClient(),
+        make_fake_bay_client(recorded, "sbx_temporary"),
     )
 
     async def fake_resolve_profile(self, client):
@@ -1372,7 +1360,22 @@ def test_shipyard_neo_browser_property_reports_missing_capability():
 
 
 @pytest.mark.asyncio
-async def test_shipyard_neo_resolve_profile_prefers_browser_python():
+async def test_shipyard_neo_resolve_profile_honors_python_default():
+    from data.plugins.astrbot_sandbox_shipyard_neo.booters.shipyard_neo import (
+        ShipyardNeoBooter,
+    )
+
+    class FakeClient:
+        async def list_profiles(self):
+            raise AssertionError("configured python-default should not auto-select")
+
+    booter = ShipyardNeoBooter(endpoint_url="https://example.com", access_token="token")
+
+    assert await booter._resolve_profile(FakeClient()) == "python-default"
+
+
+@pytest.mark.asyncio
+async def test_shipyard_neo_resolve_profile_auto_selects_browser_when_profile_empty():
     from data.plugins.astrbot_sandbox_shipyard_neo.booters.shipyard_neo import (
         ShipyardNeoBooter,
     )
@@ -1392,7 +1395,9 @@ async def test_shipyard_neo_resolve_profile_prefers_browser_python():
                 ]
             )
 
-    booter = ShipyardNeoBooter(endpoint_url="https://example.com", access_token="token")
+    booter = ShipyardNeoBooter(
+        endpoint_url="https://example.com", access_token="token", profile=""
+    )
 
     assert await booter._resolve_profile(FakeClient()) == "browser-python"
 
