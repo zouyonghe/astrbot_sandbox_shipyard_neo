@@ -18,7 +18,11 @@ from .booters.shipyard_neo_endpoint import (
     is_shipyard_neo_auto_endpoint,
     normalize_shipyard_neo_endpoint,
 )
-from .tools.shipyard_neo import should_enable_browser_tools, tool_names_for_profile
+from .tools.shipyard_neo import (
+    normalize_shipyard_neo_profile,
+    should_enable_browser_tools,
+    tool_names_for_profile,
+)
 
 BootHook = Callable[[Context, str, str, dict], Awaitable[ComputerBooter]]
 _SHIPYARD_NEO_TTL_KEY = "sandbox_ttl"
@@ -82,10 +86,9 @@ class ShipyardNeoSandboxProvider:
 
     @staticmethod
     def _configured_profile(config: Mapping[str, Any]) -> str:
-        raw_profile = config.get("shipyard_neo_profile", _SHIPYARD_NEO_DEFAULT_PROFILE)
-        if raw_profile is None:
-            return ""
-        return str(raw_profile).strip()
+        if "shipyard_neo_profile" not in config:
+            return _SHIPYARD_NEO_DEFAULT_PROFILE
+        return normalize_shipyard_neo_profile(config.get("shipyard_neo_profile"))
 
     @staticmethod
     def _persistent_name(config: dict, fallback: str) -> str:
@@ -152,9 +155,7 @@ class ShipyardNeoSandboxProvider:
         return {
             "endpoint_url": endpoint,
             "access_token": token,
-            "profile": merged.get(
-                "shipyard_neo_profile", _SHIPYARD_NEO_DEFAULT_PROFILE
-            ),
+            "profile": self._configured_profile(merged),
             "ttl": resolve_sandbox_timeout(
                 merged,
                 _SHIPYARD_NEO_TTL_KEY,

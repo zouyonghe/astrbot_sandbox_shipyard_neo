@@ -39,12 +39,18 @@ SHIPYARD_NEO_TOOL_NAMES = frozenset(
 BROWSER_TOOL_NAMES = frozenset(tool_cls.name for tool_cls in BROWSER_TOOL_CLASSES)
 
 
+def normalize_shipyard_neo_profile(profile: str | None) -> str:
+    if profile is None:
+        return ""
+    return str(profile).strip()
+
+
 def should_enable_browser_tools(profile: str | None) -> bool:
-    normalized = str(profile or "").strip()
+    normalized = normalize_shipyard_neo_profile(profile)
     return normalized != "python-default"
 
 
-def tool_classes_for_profile(profile: str | None):
+def tool_classes_for_profile(profile: str | None) -> tuple[type, ...]:
     if should_enable_browser_tools(profile):
         return SHIPYARD_NEO_TOOL_CLASSES
     return NEO_SKILL_TOOL_CLASSES
@@ -54,7 +60,7 @@ def tool_names_for_profile(profile: str | None) -> frozenset[str]:
     return frozenset(tool_cls.name for tool_cls in tool_classes_for_profile(profile))
 
 
-def build_shipyard_neo_tools(profile: str | None = None):
+def build_shipyard_neo_tools(profile: str | None = None) -> list:
     return [tool_cls() for tool_cls in tool_classes_for_profile(profile)]
 
 
@@ -80,6 +86,7 @@ __all__ = [
     "SHIPYARD_NEO_TOOL_MODULE_PREFIX",
     "SHIPYARD_NEO_TOOL_NAMES",
     "build_shipyard_neo_tools",
+    "normalize_shipyard_neo_profile",
     "should_enable_browser_tools",
     "tool_classes_for_profile",
     "tool_names_for_profile",

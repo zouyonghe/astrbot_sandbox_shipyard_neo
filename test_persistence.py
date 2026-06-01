@@ -131,6 +131,26 @@ def test_shipyard_neo_provider_excludes_browser_tools_for_python_default():
     assert BROWSER_TOOL_NAMES.isdisjoint(provider.tool_names)
 
 
+def test_shipyard_neo_provider_normalizes_none_profile_consistently():
+    from data.plugins.astrbot_sandbox_shipyard_neo.tools.shipyard_neo import (
+        BROWSER_TOOL_NAMES,
+    )
+
+    provider = provider_module.ShipyardNeoSandboxProvider(
+        plugin_config={"shipyard_neo_profile": None}
+    )
+    context = SimpleNamespace(
+        get_config=lambda umo: {"provider_settings": {"sandbox": {}}}
+    )
+
+    config = provider.build_create_config(context, "dashboard")
+
+    assert provider.configured_profile == ""
+    assert config["profile"] == ""
+    assert "browser" in provider.capabilities
+    assert BROWSER_TOOL_NAMES <= provider.tool_names
+
+
 def test_shipyard_neo_provider_defaults_to_local_endpoint_when_unconfigured():
     provider = provider_module.ShipyardNeoSandboxProvider()
 
