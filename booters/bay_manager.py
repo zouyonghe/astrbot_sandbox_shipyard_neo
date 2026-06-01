@@ -86,8 +86,11 @@ class BayContainerManager:
         self._image = image
         self._host_port = host_port
         self._access_token = access_token
-        self._docker_network = docker_network or os.getenv(
-            BAY_NETWORK_ENV, DEFAULT_BAY_NETWORK
+        network = (
+            docker_network if docker_network is not None else os.getenv(BAY_NETWORK_ENV)
+        )
+        self._docker_network = (
+            network.strip() if network and network.strip() else DEFAULT_BAY_NETWORK
         )
         self._docker: aiodocker.Docker | None = None
         self._container: Any = None
@@ -355,8 +358,7 @@ class BayContainerManager:
             ) from exc
 
         for network in networks:
-            name = network.get("Name") if isinstance(network, dict) else None
-            if name == self._docker_network:
+            if self._network_name(network) == self._docker_network:
                 return
 
         try:
@@ -376,6 +378,18 @@ class BayContainerManager:
                 f"starting Bay: {exc}"
             ) from exc
         logger.info("[BayManager] Created Docker network: %s", self._docker_network)
+
+    @staticmethod
+    def _network_name(network: Any) -> str | None:
+        if isinstance(network, dict):
+            return network.get("Name")
+        attrs = getattr(network, "attrs", None)
+        if isinstance(attrs, dict):
+            return attrs.get("Name")
+        try:
+            return network["Name"]
+        except Exception:
+            return None
 
     async def _pull_image_if_needed(self) -> None:
         """Pull the Bay image if it doesn't exist locally."""
